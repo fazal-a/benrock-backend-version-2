@@ -1,7 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, BaseEntity } from 'typeorm';
 import Post from './Post';
-import Friend from './Friend';
-import Chat from './Chat';
 
 @Entity("UsersTable")
 export default class User extends BaseEntity {
@@ -19,13 +17,4 @@ export default class User extends BaseEntity {
 
     @OneToMany(() => Post, post => post.user)
     posts!: Post[];
-
-    @OneToMany(() => Friend, friend => friend.user)
-    friends!: Friend[];
-
-    @OneToMany(() => Chat, chat => chat.sender)
-    sentChats!: Chat[];
-
-    @OneToMany(() => Chat, chat => chat.receiver)
-    receivedChats!: Chat[];
 }
