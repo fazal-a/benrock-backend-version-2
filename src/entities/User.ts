@@ -7,13 +7,25 @@ export default class User extends BaseEntity {
     id!: number;
 
     @Column({ type: 'varchar' })
-    name!: string;
+    firstName!: string;
+
+    @Column({ type: 'varchar' })
+    lastName!: string;
+
+    @Column({ type: 'varchar', unique: true })
+    username!: string;
 
     @Column({ type: 'varchar', unique: true })
     email!: string;
 
     @Column({ type: 'varchar' })
     password!: string;
+
+    @Column({ type: 'varchar', nullable: true })
+    gender?: string;
+
+    @Column({ type: 'varchar', nullable: true })
+    profileImage?: string;
 
     @OneToMany(() => Post, post => post.user)
     posts!: Post[];
