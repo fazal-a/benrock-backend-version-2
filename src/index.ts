@@ -5,7 +5,6 @@ import router from "./routes/Router";
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log(process.env);
 const app: Express = express();
 
 app.use(express.urlencoded({extended: false}));
