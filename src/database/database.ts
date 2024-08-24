@@ -1,19 +1,18 @@
-import { createConnection } from 'typeorm';
+import {createConnection} from 'typeorm';
 import User from "../entities/User";
 import Post from "../entities/Post";
-import Friend from "../entities/Friend";
-import Chat from "../entities/Chat";
+import * as process from "process";
 
 export default createConnection({
-    host: "localhost",
+    host: process.env.HOST,
     type: "postgres",
-    database: 'benrockSocialAppVersion2',
-    port: 5432,
-    username: 'postgres',
-    password: '1234',
+    database: process.env.DATABASE,
+    port: process.env.DATABASE_PORT ? parseInt(process.env.DATABASE_PORT, 10) : undefined, // Convert to number
+    username: process.env.DATABASE_USERNAME,
+    password: process.env.DATABASE_PASSWORD,
     entities: [User, Post],
     synchronize: true,
-    logging: true,
+    logging: false,
 }).then(connection => {
     console.log("Connected to PostgreSQL database");
     return connection;

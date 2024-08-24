@@ -1,9 +1,11 @@
-import 'reflect-metadata';
-import express, {Application, Request, Response, NextFunction, Express} from 'express';
-import database from "./database/database";
-import router from "./routes/Router";
 import dotenv from 'dotenv';
 dotenv.config();
+import 'reflect-metadata';
+import express, {Request, Response, Express} from 'express';
+import database from "./database/database";
+import router from "./routes/Router";
+import * as process from "node:process";
+
 
 const app: Express = express();
 
@@ -12,7 +14,7 @@ app.use(express.json());
 
 app.use('/', router);
 
-app.use((req: Request, res:Response, next) => {
+app.use((req: Request, res: Response, next) => {
     // set the CORS policy
     res.header('Access-Control-Allow-Origin', '*');
     // set the CORS headers
@@ -25,7 +27,7 @@ app.use((req: Request, res:Response, next) => {
     next();
 });
 
-app.use((req:Request, res:Response, next) => {
+app.use((req: Request, res: Response, next) => {
     const error = new Error('not found');
     return res.status(404).json({
         message: error.message
