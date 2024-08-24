@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import {Request, Response} from 'express';
 import User from "../../entities/User";
 import bcrypt from "bcrypt";
 import Joi from "joi";
@@ -14,16 +14,16 @@ export default {
             const schema = Joi.object({
                 firstName: Joi.string().optional(),
                 lastName: Joi.string().optional(),
-                username: Joi.string().optional(),
+                userName: Joi.string().optional(),
                 gender: Joi.string().optional(),
                 profileImage: Joi.string().optional(),
             });
 
-            const { error } = schema.validate(req.body);
+            const {error} = schema.validate(req.body);
             if (error) {
                 return RequestResponseMappings.sendErrorResponse(
                     res,
-                    { error },
+                    {error},
                     error.message || 'Failed to register',
                     400
                 );
@@ -31,7 +31,7 @@ export default {
 
             const userRepository = getRepository(User);
             const user = await userRepository.findOne({
-                where: { id: req.user?.id }
+                where: {id: req.user?.id}
             });
 
             if (!user) {
@@ -44,16 +44,16 @@ export default {
             }
 
             const updatedUser = Object.assign(user, req.body);
-            console.log("updatedUser::",updatedUser)
+            console.log("updatedUser::", updatedUser)
             const savedUser = await userRepository.save(updatedUser);
-            console.log("savedUser::",savedUser)
+            console.log("savedUser::", savedUser)
 
             return RequestResponseMappings.sendSuccessResponse(res, {
                 user: {
                     id: savedUser.id,
                     firstName: savedUser.firstName,
                     lastName: savedUser.lastName,
-                    username: savedUser.username,
+                    userName: savedUser.userName,
                     email: savedUser.email,
                     gender: savedUser.gender,
                     profileImage: savedUser.profileImage
@@ -63,7 +63,7 @@ export default {
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
+                {error},
                 error instanceof Error ? error.message : "Failed to update profile",
                 500
             );
@@ -82,11 +82,11 @@ export default {
                 gender: Joi.string().optional(),
                 profileImage: Joi.string().optional(),
             });
-            const { error } = schema.validate(req.body);
+            const {error} = schema.validate(req.body);
             if (error) {
                 return RequestResponseMappings.sendErrorResponse(
                     res,
-                    { error },
+                    {error},
                     error.message || "Validation Error",
                     400
                 );
@@ -94,7 +94,7 @@ export default {
 
             const userRepository = getRepository(User);
             const existingUser = await userRepository.findOne({
-                where: { email: req.body.email }
+                where: {email: req.body.email}
             });
             if (existingUser) {
                 return RequestResponseMappings.sendErrorResponse(
@@ -107,7 +107,7 @@ export default {
 
             const hashedPassword = await bcrypt.hash(req.body.password, 10);
             const newUser = userRepository.create({
-                username: req.body.username,
+                userName: req.body.userName,
                 email: req.body.email,
                 password: hashedPassword,
                 firstName: req.body.firstName,
@@ -119,14 +119,14 @@ export default {
             const savedUser = await userRepository.save(newUser);
             return RequestResponseMappings.sendSuccessResponse(res, {
                 token: jsonwebtoken.sign(
-                    { email: savedUser.email, id: savedUser.id },
-                    process.env.JWT_SECRET_KEY || "secret"
+                    {email: savedUser.email, id: savedUser.id, userName: savedUser.userName},
+                    process.env.JWT_SECRET_KEY || 'jwt secret key here'
                 ),
                 user: {
                     id: savedUser.id,
                     firstName: savedUser.firstName,
                     lastName: savedUser.lastName,
-                    username: savedUser.username,
+                    userName: savedUser.userName,
                     email: savedUser.email,
                     gender: savedUser.gender,
                     profileImage: savedUser.profileImage
@@ -146,17 +146,15 @@ export default {
     // Login a user
     login: async (req: Request, res: Response) => {
         try {
-            const asdf = process.env.ASDF || 'some text';
-            console.log("asdffff:::",asdf)
             const schema = Joi.object({
                 email: Joi.string().email().required(),
                 password: Joi.string().min(6).required(),
             });
-            const { error } = schema.validate(req.body);
+            const {error} = schema.validate(req.body);
             if (error) {
                 return RequestResponseMappings.sendErrorResponse(
                     res,
-                    { error },
+                    {error},
                     error.message,
                     400
                 );
@@ -164,7 +162,7 @@ export default {
 
             const userRepository = getRepository(User);
             const user = await userRepository.findOne({
-                where: { email: req.body.email }
+                where: {email: req.body.email}
             });
             if (!user) {
                 return RequestResponseMappings.sendErrorResponse(
@@ -186,8 +184,8 @@ export default {
             }
 
             const token = jsonwebtoken.sign(
-                { email: user.email, id: user.id },
-                process.env.JWT_SECRET_KEY || "secret"
+                {email: user.email, id: user.id, userName: user.userName},
+                process.env.JWT_SECRET_KEY || 'jwt secret key here'
             );
 
             return RequestResponseMappings.sendSuccessResponse(res, {
@@ -196,7 +194,7 @@ export default {
                     id: user.id,
                     firstName: user.firstName,
                     lastName: user.lastName,
-                    username: user.username,
+                    userName: user.userName,
                     email: user.email,
                     gender: user.gender,
                     profileImage: user.profileImage
@@ -206,7 +204,7 @@ export default {
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
+                {error},
                 error instanceof Error ? error.message : 'Failed to Login',
                 500
             );
@@ -218,7 +216,7 @@ export default {
         try {
             const userRepository = getRepository(User);
             const user = await userRepository.findOne({
-                where: { email: req?.user?.email }
+                where: {email: req?.user?.email}
             });
 
             if (!user) {
@@ -235,7 +233,7 @@ export default {
                     id: user.id,
                     firstName: user.firstName,
                     lastName: user.lastName,
-                    username: user.username,
+                    userName: user.userName,
                     email: user.email,
                     gender: user.gender,
                     profileImage: user.profileImage
@@ -245,7 +243,7 @@ export default {
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
+                {error},
                 error instanceof Error ? error.message : "Failed to retrieve user profile",
                 500
             );
@@ -253,11 +251,9 @@ export default {
     },
 
     // Delete user account
-    deleteAccount: async (req: Request, res: Response) => {
+    deleteProfile: async (req: Request, res: Response) => {
         try {
-
             const userId = req.query.id;
-
             // Validate that userId is provided
             if (!userId) {
                 throw new Error("User Id is required");
@@ -297,8 +293,8 @@ export default {
     // Search Users
     searchUsers: async (req: Request, res: Response) => {
         try {
-            const { searchTerm } = req.query;
-            console.log("searchTerm::::",searchTerm)
+            const {searchTerm} = req.query;
+            console.log("searchTerm::::", searchTerm)
             if (!searchTerm) {
                 return RequestResponseMappings.sendErrorResponse(
                     res,
@@ -311,11 +307,11 @@ export default {
             const userRepository = getRepository(User);
             const users = await userRepository.find({
                 where: [
-                    { username: Like(`%${searchTerm}%`) },
-                    { firstName: Like(`%${searchTerm}%`) },
-                    { lastName: Like(`%${searchTerm}%`) },
+                    {userName: Like(`%${searchTerm}%`)},
+                    {firstName: Like(`%${searchTerm}%`)},
+                    {lastName: Like(`%${searchTerm}%`)},
                 ],
-                select: ["id", "firstName", "lastName", "username", "email", "gender", "profileImage"]
+                select: ["id", "firstName", "lastName", "userName", "email", "gender", "profileImage"]
             });
 
             return RequestResponseMappings.sendSuccessResponse(res, {
@@ -325,7 +321,7 @@ export default {
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
+                {error},
                 error instanceof Error ? error.message : "Failed to search users",
                 500
             );
@@ -337,7 +333,7 @@ export default {
         try {
             const userRepository = getRepository(User);
             const users = await userRepository.find({
-                select: ["id", "firstName", "lastName", "username", "email", "gender", "profileImage"]
+                select: ["id", "firstName", "lastName", "userName", "email", "gender", "profileImage"]
             });
 
             return RequestResponseMappings.sendSuccessResponse(res, {
@@ -347,7 +343,7 @@ export default {
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
+                {error},
                 error instanceof Error ? error.message : "Failed to retrieve users",
                 500
             );
