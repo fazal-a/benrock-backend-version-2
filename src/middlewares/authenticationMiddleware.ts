@@ -1,6 +1,6 @@
 import {NextFunction, Request, Response} from "express";
 import jsonwebtoken from 'jsonwebtoken';
-import RequestResponseMappings from '../utils/shared/requestResponseMapping';
+import RequestResponseMappings from '../utils/requestResponseMapping';
 import {getRepository} from "typeorm";
 import User from "../entities/User";
 import * as process from "node:process";

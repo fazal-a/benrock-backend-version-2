@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+
 dotenv.config();
 import 'reflect-metadata';
 import express, {Request, Response, Express} from 'express';
@@ -36,7 +37,7 @@ app.use((req: Request, res: Response, next) => {
 
 const PORT = process.env.PORT || 4000;
 
-database.then(() => {
+database.initialize().then(() => {
     app.listen(PORT, () => {
         console.log(`The server is running on port ${PORT}`);
     });

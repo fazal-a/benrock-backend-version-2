@@ -9,10 +9,16 @@ import {
 } from 'typeorm';
 import User from './User';
 
-@Entity("posts")
+@Entity("PostsTable")
 export default class Post extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number;
+
+    @Column({type: 'varchar', default: ''})
+    title!: string;
+
+    @Column({type: 'varchar', default: ''})
+    description!: string;
 
     @Column({type: 'varchar'})
     type!: 'photo' | 'video';
