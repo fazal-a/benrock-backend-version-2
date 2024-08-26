@@ -1,12 +1,11 @@
 import {Request, Response} from 'express';
 import User from "../../entities/User";
-import bcrypt from "bcrypt";
 import Joi from "joi";
 import RequestResponseMappings from "../../utils/requestResponseMapping";
-import jsonwebtoken from "jsonwebtoken";
-import {getRepository, Like} from "typeorm";
-import * as process from "node:process";
+import {Like} from "typeorm";
 import {uploadImage} from "../../helpers/uploadService";
+import DataSource from "../../database/database";
+
 
 export default {
     // Update User Profile
@@ -15,9 +14,7 @@ export default {
             const schema = Joi.object({
                 firstName: Joi.string().optional(),
                 lastName: Joi.string().optional(),
-                userName: Joi.string().optional(),
                 gender: Joi.string().optional(),
-                profileImage: Joi.string().optional(),
             });
 
             const {error} = schema.validate(req.body);
@@ -30,8 +27,7 @@ export default {
                 );
             }
 
-            const userRepository = getRepository(User);
-            const user = await userRepository.findOne({
+            const user = await DataSource.manager.findOne(User, {
                 where: {id: req.user?.id}
             });
 
@@ -44,17 +40,19 @@ export default {
                 );
             }
 
+            // Handle profile image path if provided
+            let profileImagePath = user.profileImage; // Retain existing profile image if no new image is uploaded
 
-            let path = '';
             if (req.file) {
-                path = await uploadImage(req.file);
+                profileImagePath = await uploadImage(req.file); // Upload new image and get path
             }
 
-            const updatedUser = Object.assign(user, req.body);
+            // Update user data
+            const updatedUser = Object.assign(user, req.body, {
+                profileImage: profileImagePath,
+            });
 
-            console.log("updatedUser::", updatedUser)
-            const savedUser = await userRepository.save(updatedUser);
-            console.log("savedUser::", savedUser)
+            const savedUser = await DataSource.manager.save(updatedUser);
 
             return RequestResponseMappings.sendSuccessResponse(res, {
                 user: {
@@ -81,8 +79,7 @@ export default {
     // Get authenticated user's profile
     getProfile: async (req: Request, res: Response) => {
         try {
-            const userRepository = getRepository(User);
-            const user = await userRepository.findOne({
+            const user = await DataSource.manager.findOne(User,{
                 where: {email: req?.user?.email}
             });
 
@@ -126,9 +123,7 @@ export default {
                 throw new Error("User Id is required");
             }
 
-            const userRepository = getRepository(User);
-            const deleteResult = await userRepository.delete(userId as string);
-            console.log("deleteResult:::", deleteResult)
+            const deleteResult = await DataSource.manager.delete(User, userId as string);
 
             // Check if a user was deleted
             if (deleteResult.affected && deleteResult.affected > 0) {
@@ -171,8 +166,7 @@ export default {
                 );
             }
 
-            const userRepository = getRepository(User);
-            const users = await userRepository.find({
+            const users = await DataSource.manager.find(User,{
                 where: [
                     {userName: Like(`%${searchTerm}%`)},
                     {firstName: Like(`%${searchTerm}%`)},
@@ -198,8 +192,7 @@ export default {
     // Get List of Users
     getUsers: async (req: Request, res: Response) => {
         try {
-            const userRepository = getRepository(User);
-            const users = await userRepository.find({
+            const users = await DataSource.manager.find(User,{
                 select: ["id", "firstName", "lastName", "userName", "email", "gender", "profileImage"]
             });
 

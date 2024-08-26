@@ -10,8 +10,8 @@ let connectionOptions: DataSourceOptions = {
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE,
     synchronize: true, // if true, you don't really need migrations
-    logging: true,
-    entities: ["src/**/*.entity{.ts,.js}"], // where our entities reside
+    logging: false,
+    entities: ["src/entities/*{.ts,.js}"], // where our entities reside
     migrations: ["src/database/migrations/*{.ts,.js}"], // where our migrations reside
 };
 

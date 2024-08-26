@@ -1,8 +1,8 @@
 import {Request, Response} from 'express';
 import Post from '../../entities/Post';
-import {getRepository} from 'typeorm';
 import {uploadImage, uploadVideoWithThumbnail} from "../../helpers/uploadService";
 import RequestResponseMappings from "../../utils/requestResponseMapping";
+import DataSource from "../../database/database";
 
 export default {
     //create post
@@ -40,8 +40,7 @@ export default {
                 );
             }
 
-            const postRepository = getRepository(Post);
-            const newPost = postRepository.create({
+            const newPost = DataSource.manager.create(Post,{
                 title,
                 description,
                 type,
@@ -50,7 +49,7 @@ export default {
                 createdBy: user,
             });
 
-            await postRepository.save(newPost);
+            await DataSource.manager.save(newPost);
 
             return RequestResponseMappings.sendSuccessResponse(
                 res,
@@ -75,8 +74,7 @@ export default {
             const limit = parseInt(req.query.limit as string) || 10;
             const offset = (page - 1) * limit;
 
-            const postRepository = getRepository(Post);
-            const [posts, total] = await postRepository.findAndCount({
+            const [posts, total] = await DataSource.manager.findAndCount(Post,{
                 order: {createdAt: 'DESC'},
                 take: limit,
                 skip: offset,
@@ -111,8 +109,7 @@ export default {
             const limit = parseInt(req.query.limit as string) || 10;
             const offset = (page - 1) * limit;
 
-            const postRepository = getRepository(Post);
-            const [posts, total] = await postRepository.findAndCount({
+            const [posts, total] = await DataSource.manager.findAndCount(Post,{
                 order: {likes: 'DESC'},
                 take: limit,
                 skip: offset,

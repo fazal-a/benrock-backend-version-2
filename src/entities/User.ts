@@ -30,11 +30,11 @@ export default class User extends BaseEntity {
     @Column({type: 'boolean', nullable: true, default: false})
     emailVerified?: boolean;
 
-    @Column({type: 'varchar', nullable: true, default: ""})
-    emailVerificationToken?: string;
+    @Column({type: 'varchar', nullable: true, default: null})
+    otp?: string;
 
-    @Column({type: 'varchar', nullable: true, default: ""})
-    emailVerificationTokenExpires?: string;
+    @Column({type: 'varchar', nullable: true, default: null})
+    otpExpires?: string;
 
     @OneToMany(() => Post, post => post.createdBy)
     posts!: Post[];
