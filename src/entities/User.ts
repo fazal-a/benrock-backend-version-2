@@ -1,5 +1,7 @@
 import {Entity, PrimaryGeneratedColumn, Column, OneToMany, BaseEntity, CreateDateColumn} from 'typeorm';
 import Post from './Post';
+import FriendRequest from "./FriendRequest";
+import Friendship from "./Friendship";
 
 @Entity("UsersTable")
 export default class User extends BaseEntity {
@@ -38,6 +40,17 @@ export default class User extends BaseEntity {
 
     @OneToMany(() => Post, post => post.createdBy)
     posts!: Post[];
+
+    @OneToMany(() => FriendRequest, friendRequest => friendRequest.sender)
+    sentRequests!: FriendRequest[];
+
+    @OneToMany(() => FriendRequest, friendRequest => friendRequest.receiver)
+    receivedRequests!: FriendRequest[];
+
+    @OneToMany(() => Friendship, friendship => {
+        return friendship.user1 || friendship.user2
+    })
+    friends!: Friendship[];
 
     @CreateDateColumn()
     createdAt!: Date;
