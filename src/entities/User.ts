@@ -2,6 +2,7 @@ import {Entity, PrimaryGeneratedColumn, Column, OneToMany, BaseEntity, CreateDat
 import Post from './Post';
 import FriendRequest from "./FriendRequest";
 import Friendship from "./Friendship";
+import Like from "./Like";
 
 @Entity("UsersTable")
 export default class User extends BaseEntity {
@@ -51,6 +52,9 @@ export default class User extends BaseEntity {
         return friendship.user1 || friendship.user2
     })
     friends!: Friendship[];
+
+    @OneToMany(() => Like, like => like.user)
+    likes!: Like[];
 
     @CreateDateColumn()
     createdAt!: Date;
