@@ -174,7 +174,6 @@ export default {
 
             if (action === 'accept') {
                 const friendship = Friendship.createOrderedFriendship(friendRequest.sender, friendRequest.receiver);
-                console.log("friendship:::",friendship)
                 const savedFriendship = await DataSource.manager.save(friendship);
                 friendRequest.isAccepted = true;
                 const savedFriendRequest = await DataSource.manager.save(friendRequest);
@@ -212,7 +211,7 @@ export default {
         try {
             const userId = req.user?.id;
             const friends = await DataSource.manager.createQueryBuilder(User, "user")
-                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
+                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", {userId})
                 .select(["user.id", "user.firstName", "user.lastName", "user.userName", "user.profileImage"])
                 .getMany();
             console.log("friends:::", friends)
