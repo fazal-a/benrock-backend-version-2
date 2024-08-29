@@ -4,6 +4,7 @@ import {uploadImage, uploadVideoWithThumbnail} from "../../helpers/uploadService
 import RequestResponseMappings from "../../utils/requestResponseMapping";
 import DataSource from "../../database/database";
 import Friendship from "../../entities/Friendship";
+import Like from "../../entities/Like";
 
 export default {
     //create post
@@ -41,7 +42,7 @@ export default {
                 );
             }
 
-            const newPost = DataSource.manager.create(Post,{
+            const newPost = DataSource.manager.create(Post, {
                 title,
                 description,
                 type,
@@ -75,7 +76,7 @@ export default {
             const limit = parseInt(req.query.limit as string) || 10;
             const offset = (page - 1) * limit;
 
-            const [posts, total] = await DataSource.manager.findAndCount(Post,{
+            const [posts, total] = await DataSource.manager.findAndCount(Post, {
                 order: {createdAt: 'DESC'},
                 take: limit,
                 skip: offset,
@@ -103,14 +104,14 @@ export default {
         }
     },
 
-    //get popular posts
+    //get popular posts // problem with it - adjust the like field to get likes from the likes table
     getPopularPosts: async (req: Request, res: Response) => {
         try {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 10;
             const offset = (page - 1) * limit;
 
-            const [posts, total] = await DataSource.manager.findAndCount(Post,{
+            const [posts, total] = await DataSource.manager.findAndCount(Post, {
                 order: {likes: 'DESC'},
                 take: limit,
                 skip: offset,
@@ -138,7 +139,7 @@ export default {
         }
     },
 
-    //get friends posts
+    // Get friends' posts with like count and impression count
     getFriendsPosts: async (req: Request, res: Response) => {
         try {
             const userId = req.user?.id;
@@ -146,22 +147,40 @@ export default {
             const limit = parseInt(req.query.limit as string) || 10;
             const offset = (page - 1) * limit;
 
-            // Get friends' posts
-            const [posts, total] = await DataSource.manager.createQueryBuilder(Post, "post")
+            // Step 1: Fetch posts by friends of the logged-in user
+            const posts = await DataSource.manager.createQueryBuilder(Post, "post")
                 .innerJoinAndSelect("post.createdBy", "user")
-                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
+                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", {userId})
                 .orderBy("post.createdAt", "DESC")
                 .skip(offset)
                 .take(limit)
-                .getManyAndCount();
+                .getMany();
 
+            // Step 2: Process each post to fetch the like count and whether the user has liked it
+            const postsWithLikes = await Promise.all(posts.map(async post => {
+                const likeCount = await DataSource.manager.count(Like, {where: {post: {id: post.id}}});
+                const hasLiked = await DataSource.manager.findOne(Like, {
+                    where: {
+                        post: {id: post.id},
+                        user: {id: userId}
+                    }
+                });
+
+                return {
+                    ...post,
+                    likeCount,
+                    hasLiked: !!hasLiked,
+                };
+            }));
+
+            // Step 3: Return the response with pagination info
             return RequestResponseMappings.sendSuccessResponse(
                 res,
                 {
-                    posts,
+                    posts: postsWithLikes,
                     currentPage: page,
-                    totalPages: Math.ceil(total / limit),
-                    totalItems: total,
+                    totalPages: Math.ceil(posts.length / limit),
+                    totalItems: posts.length,
                 },
                 "Friends' posts retrieved successfully",
                 200
@@ -169,25 +188,24 @@ export default {
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
-                error instanceof Error ? error.message : "Failed to retrieve friends' posts!",
+                {error},
+                error instanceof Error ? error.message : "Failed to retrieve friends' posts",
                 500
             );
         }
     },
-
-    //
+    // Like or unlike a post
     likePost: async (req: Request, res: Response) => {
         try {
             const userId = req.user?.id;
             const postId = req.body.postId;
+            console.log("postId:::", postId)
 
-            // Check if the post belongs to a friend
-            const post = await DataSource.manager.createQueryBuilder(Post, "post")
-                .innerJoin("post.createdBy", "user")
-                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
-                .where("post.id = :postId", { postId })
-                .getOne();
+            const post = await DataSource.manager.findOne(Post, {
+                where: {id: postId},
+                relations: ["createdBy"]
+            });
+            console.log("post:::", post)
 
             if (!post) {
                 return RequestResponseMappings.sendErrorResponse(
@@ -198,21 +216,42 @@ export default {
                 );
             }
 
-            // Increment the like count
-            post.likes += 1;
-            await DataSource.manager.save(post);
+            const existingLike = await DataSource.manager.findOne(Like, {
+                where: {post: {id: postId}, user: {id: userId}}
+            });
 
-            return RequestResponseMappings.sendSuccessResponse(
-                res,
-                { post },
-                "Post liked successfully",
-                200
-            );
+            console.log("existingLike:::", existingLike)
+
+            if (existingLike) {
+                console.log("inside if existingLike:::")
+
+                // If the user has already liked the post, unlike it
+                await DataSource.manager.remove(Like, existingLike);
+            } else {
+                console.log("inside else existingLike:::")
+
+                // If the user hasn't liked the post yet, like it
+                const like = DataSource.manager.create(Like, {
+                    user: req.user,
+                    post: post
+                });
+
+                console.log("like::::", like)
+                await DataSource.manager.save(like);
+            }
+
+            const likeCount = await DataSource.manager.count(Like, {where: {post: {id: postId}}});
+            console.log("likeCount::::", likeCount)
+
+            return RequestResponseMappings.sendSuccessResponse(res, {
+                likeCount,
+                hasLiked: !existingLike,
+            }, existingLike ? "Post unliked successfully" : "Post liked successfully");
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
-                error instanceof Error ? error.message : "Failed to like the post!",
+                {error},
+                error instanceof Error ? error.message : "Failed to like/unlike the post",
                 500
             );
         }
@@ -227,8 +266,8 @@ export default {
             // Check if the post belongs to a friend
             const post = await DataSource.manager.createQueryBuilder(Post, "post")
                 .innerJoin("post.createdBy", "user")
-                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
-                .where("post.id = :postId", { postId })
+                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", {userId})
+                .where("post.id = :postId", {postId})
                 .getOne();
 
             if (!post) {
@@ -246,20 +285,19 @@ export default {
 
             return RequestResponseMappings.sendSuccessResponse(
                 res,
-                { post },
+                {post},
                 "Impression added successfully",
                 200
             );
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                { error },
+                {error},
                 error instanceof Error ? error.message : "Failed to add impression to the post!",
                 500
             );
         }
     }
-
 
 
 };

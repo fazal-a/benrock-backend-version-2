@@ -5,9 +5,10 @@ import {
     ManyToOne,
     BaseEntity,
     CreateDateColumn,
-    UpdateDateColumn
+    UpdateDateColumn, OneToMany
 } from 'typeorm';
 import User from './User';
+import Like from "./Like";
 
 @Entity("PostsTable")
 export default class Post extends BaseEntity {
@@ -32,8 +33,8 @@ export default class Post extends BaseEntity {
     @Column({type: 'int', default: 0})
     clicks!: number;
 
-    @Column({type: 'int', default: 0})
-    likes!: number;
+    @OneToMany(() => Like, like => like.post)
+    likes!: Like[];
 
     @Column({type: 'int', default: 0})
     impressions!: number;
