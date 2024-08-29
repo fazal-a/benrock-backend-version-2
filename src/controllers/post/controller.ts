@@ -3,6 +3,7 @@ import Post from '../../entities/Post';
 import {uploadImage, uploadVideoWithThumbnail} from "../../helpers/uploadService";
 import RequestResponseMappings from "../../utils/requestResponseMapping";
 import DataSource from "../../database/database";
+import Friendship from "../../entities/Friendship";
 
 export default {
     //create post
@@ -135,5 +136,130 @@ export default {
                 500
             );
         }
+    },
+
+    //get friends posts
+    getFriendsPosts: async (req: Request, res: Response) => {
+        try {
+            const userId = req.user?.id;
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 10;
+            const offset = (page - 1) * limit;
+
+            // Get friends' posts
+            const [posts, total] = await DataSource.manager.createQueryBuilder(Post, "post")
+                .innerJoinAndSelect("post.createdBy", "user")
+                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
+                .orderBy("post.createdAt", "DESC")
+                .skip(offset)
+                .take(limit)
+                .getManyAndCount();
+
+            return RequestResponseMappings.sendSuccessResponse(
+                res,
+                {
+                    posts,
+                    currentPage: page,
+                    totalPages: Math.ceil(total / limit),
+                    totalItems: total,
+                },
+                "Friends' posts retrieved successfully",
+                200
+            );
+        } catch (error) {
+            return RequestResponseMappings.sendErrorResponse(
+                res,
+                { error },
+                error instanceof Error ? error.message : "Failed to retrieve friends' posts!",
+                500
+            );
+        }
+    },
+
+    //
+    likePost: async (req: Request, res: Response) => {
+        try {
+            const userId = req.user?.id;
+            const postId = req.body.postId;
+
+            // Check if the post belongs to a friend
+            const post = await DataSource.manager.createQueryBuilder(Post, "post")
+                .innerJoin("post.createdBy", "user")
+                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
+                .where("post.id = :postId", { postId })
+                .getOne();
+
+            if (!post) {
+                return RequestResponseMappings.sendErrorResponse(
+                    res,
+                    {},
+                    "Post not found or you are not friends with the creator",
+                    404
+                );
+            }
+
+            // Increment the like count
+            post.likes += 1;
+            await DataSource.manager.save(post);
+
+            return RequestResponseMappings.sendSuccessResponse(
+                res,
+                { post },
+                "Post liked successfully",
+                200
+            );
+        } catch (error) {
+            return RequestResponseMappings.sendErrorResponse(
+                res,
+                { error },
+                error instanceof Error ? error.message : "Failed to like the post!",
+                500
+            );
+        }
+    },
+
+    //add impression
+    addImpression: async (req: Request, res: Response) => {
+        try {
+            const userId = req.user?.id;
+            const postId = req.body.postId;
+
+            // Check if the post belongs to a friend
+            const post = await DataSource.manager.createQueryBuilder(Post, "post")
+                .innerJoin("post.createdBy", "user")
+                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
+                .where("post.id = :postId", { postId })
+                .getOne();
+
+            if (!post) {
+                return RequestResponseMappings.sendErrorResponse(
+                    res,
+                    {},
+                    "Post not found or you are not friends with the creator",
+                    404
+                );
+            }
+
+            // Increment the impression count
+            post.impressions += 1;
+            await DataSource.manager.save(post);
+
+            return RequestResponseMappings.sendSuccessResponse(
+                res,
+                { post },
+                "Impression added successfully",
+                200
+            );
+        } catch (error) {
+            return RequestResponseMappings.sendErrorResponse(
+                res,
+                { error },
+                error instanceof Error ? error.message : "Failed to add impression to the post!",
+                500
+            );
+        }
     }
+
+
+
 };

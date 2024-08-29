@@ -10,4 +10,6 @@ const upload = multer();
 router.post('/create', authenticationMiddleware.isAuthentication, upload.single('file'), Controller.createPost);
 router.get('/recent',  upload.single('file'), Controller.getRecentPosts);
 router.get('/popular', upload.single('file'), Controller.getPopularPosts);
+router.get('/getFriendsPosts', authenticationMiddleware.isAuthentication, Controller.getFriendsPosts);
+router.get('/likePost', authenticationMiddleware.isAuthentication, Controller.getFriendsPosts);
 export default router;

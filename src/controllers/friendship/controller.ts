@@ -160,6 +160,7 @@ export default {
                 relations: ["sender", "receiver"]
             });
 
+
             console.log("friendRequest:::", friendRequest)
 
             if (!friendRequest) {
@@ -172,11 +173,8 @@ export default {
             }
 
             if (action === 'accept') {
-                const friendship = DataSource.manager.create(Friendship, {
-                    user1: friendRequest.sender,
-                    user2: friendRequest.receiver
-                });
-
+                const friendship = Friendship.createOrderedFriendship(friendRequest.sender, friendRequest.receiver);
+                console.log("friendship:::",friendship)
                 const savedFriendship = await DataSource.manager.save(friendship);
                 friendRequest.isAccepted = true;
                 const savedFriendRequest = await DataSource.manager.save(friendRequest);
@@ -212,23 +210,24 @@ export default {
     // Get received friend requests
     getFriends: async (req: Request, res: Response) => {
         try {
-            const user = await DataSource.manager.findOne(User, {
-                where: {id: req.user?.id},
-                relations: ["friends"]
-            });
-            console.log("user:::", user)
+            const userId = req.user?.id;
+            const friends = await DataSource.manager.createQueryBuilder(User, "user")
+                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", { userId })
+                .select(["user.id", "user.firstName", "user.lastName", "user.userName", "user.profileImage"])
+                .getMany();
+            console.log("friends:::", friends)
 
-            if (!user) {
-                return RequestResponseMappings.sendErrorResponse(
-                    res,
-                    {},
-                    "User not found",
-                    404
-                );
-            }
+            // if (!user) {
+            //     return RequestResponseMappings.sendErrorResponse(
+            //         res,
+            //         {},
+            //         "User not found",
+            //         404
+            //     );
+            // }
 
             return RequestResponseMappings.sendSuccessResponse(res, {
-                friends: user.friends
+                friends: friends
             }, "Friends retrieved successfully");
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
