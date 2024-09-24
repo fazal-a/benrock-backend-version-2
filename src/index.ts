@@ -1,40 +1,44 @@
 import dotenv from 'dotenv';
-
 dotenv.config();
-import 'reflect-metadata';
-import express, {Request, Response, Express} from 'express';
-import database from "./database/database";
-import router from "./routes/Router";
-import * as process from "node:process";
 
+import 'reflect-metadata';
+import express, { Request, Response, Express } from 'express';
+import database from './database/database';
+import router from './routes/Router';
+import * as process from 'node:process';
 
 const app: Express = express();
 
-app.use(express.urlencoded({extended: false}));
+// Body parsers
+app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-app.use('/', router);
-
+// CORS setup (Move this above the router setup)
 app.use((req: Request, res: Response, next) => {
-    // set the CORS policy
+    // Set the CORS policy
     res.header('Access-Control-Allow-Origin', '*');
-    // set the CORS headers
-    res.header('Access-Control-Allow-Headers', 'origin, X-Requested-With,Content-Type,Accept, Authorization');
-    // set the CORS method headers
+    // Set the CORS headers
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    // Set the CORS method headers
     if (req.method === 'OPTIONS') {
-        res.header('Access-Control-Allow-Methods', 'GET PATCH DELETE POST');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE');
         return res.status(200).json({});
     }
     next();
 });
 
+// Routes
+app.use('/', router);
+
+// Handle not found routes
 app.use((req: Request, res: Response, next) => {
-    const error = new Error('not found');
+    const error = new Error('Not found');
     return res.status(404).json({
         message: error.message
     });
 });
 
+// Connect to database and start the server
 const PORT = process.env.PORT || 4000;
 
 database.initialize().then(() => {

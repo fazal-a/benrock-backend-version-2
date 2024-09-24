@@ -6,6 +6,32 @@ import DataSource from "../../database/database";
 import Friendship from "../../entities/Friendship";
 import Like from "../../entities/Like";
 
+// Define the structure for the user posts map
+type UserPostsMap = {
+    [key: number]: {
+        user: {
+            id: number;
+            userName: string;
+            firstName: string;
+            lastName: string;
+            profileImage: string | undefined
+        };
+        posts: Array<{
+            id: number;
+            title: string;
+            description: string;
+            type: "photo" | "video";
+            path: string;
+            thumbnail: string | undefined;
+            clicks: number;
+            impressions: number;
+            createdAt: Date;
+            likeCount: number;
+            hasLiked: boolean;
+        }>;
+    };
+};
+
 export default {
     //create post
     createPost: async (req: Request, res: Response) => {
@@ -23,6 +49,12 @@ export default {
             const title = req.body.title;
             const description = req.body.description;
             const type = req.body.type;
+
+            console.log("user::",user)
+            console.log("title::",title)
+            console.log("description::",description)
+            console.log("type::",type)
+
 
             let path: string = '';
             let thumbnail: string = '';
@@ -51,6 +83,7 @@ export default {
                 createdBy: user,
             });
 
+            console.log("newPost::",newPost)
             await DataSource.manager.save(newPost);
 
             return RequestResponseMappings.sendSuccessResponse(
@@ -147,37 +180,92 @@ export default {
             const limit = parseInt(req.query.limit as string) || 10;
             const offset = (page - 1) * limit;
 
-            // Step 1: Fetch posts by friends of the logged-in user
-            const posts = await DataSource.manager.createQueryBuilder(Post, "post")
+            // Step 1: Fetch user IDs of friends
+            const friends = await DataSource.manager
+                .createQueryBuilder(Friendship, "friendship")
+                .select(["friendship.user1Id", "friendship.user2Id"])
+                .where("(friendship.user1Id = :userId OR friendship.user2Id = :userId)", { userId })
+                .getMany();
+
+            const friendIds = friends.map(friend => {
+                return friend.user1.id === userId ? friend.user2.id : friend.user1;
+            });
+
+            if (friendIds.length === 0) {
+                return RequestResponseMappings.sendSuccessResponse(
+                    res,
+                    { posts: [], currentPage: page, totalPages: 0, totalItems: 0 },
+                    "No posts found",
+                    200
+                );
+            }
+
+            // Step 2: Fetch posts by the friends
+            const posts = await DataSource.manager
+                .createQueryBuilder(Post, "post")
                 .innerJoinAndSelect("post.createdBy", "user")
-                .innerJoin(Friendship, "friendship", "(friendship.user1Id = :userId AND friendship.user2Id = user.id) OR (friendship.user2Id = :userId AND friendship.user1Id = user.id)", {userId})
+                .where("post.createdBy.id IN (:...friendIds)", { friendIds })
                 .orderBy("post.createdAt", "DESC")
                 .skip(offset)
                 .take(limit)
                 .getMany();
 
-            // Step 2: Process each post to fetch the like count and whether the user has liked it
-            const postsWithLikes = await Promise.all(posts.map(async post => {
-                const likeCount = await DataSource.manager.count(Like, {where: {post: {id: post.id}}});
-                const hasLiked = await DataSource.manager.findOne(Like, {
-                    where: {
-                        post: {id: post.id},
-                        user: {id: userId}
-                    }
-                });
+            // Step 3: Process each post to fetch the like count and whether the user has liked it
+            const postsWithLikes = await Promise.all(
+                posts.map(async post => {
+                    const likeCount = await DataSource.manager.count(Like, {
+                        where: { post: { id: post.id } }
+                    });
+                    const hasLiked = await DataSource.manager.findOne(Like, {
+                        where: {
+                            post: { id: post.id },
+                            user: { id: userId }
+                        }
+                    });
 
-                return {
-                    ...post,
-                    likeCount,
-                    hasLiked: !!hasLiked,
-                };
-            }));
+                    return {
+                        id: post.id,
+                        title: post.title,
+                        description: post.description,
+                        type: post.type,
+                        path: post.path,
+                        thumbnail: post.thumbnail,
+                        clicks: post.clicks,
+                        impressions: post.impressions,
+                        createdAt: post.createdAt,
+                        likeCount,
+                        hasLiked: !!hasLiked,
+                        createdBy: {
+                            id: post.createdBy.id,
+                            userName: post.createdBy.userName,
+                            firstName: post.createdBy.firstName,
+                            lastName: post.createdBy.lastName,
+                            profileImage: post.createdBy.profileImage,
+                        },
+                    };
+                })
+            );
 
-            // Step 3: Return the response with pagination info
+            // Step 4: Organize posts by user for story-like presentation
+            const userPostsMap: UserPostsMap = {};
+            postsWithLikes.forEach(post => {
+                const { createdBy } = post;
+                if (!userPostsMap[createdBy.id]) {
+                    userPostsMap[createdBy.id] = {
+                        user: createdBy,
+                        posts: [],
+                    };
+                }
+                userPostsMap[createdBy.id].posts.push(post);
+            });
+
+            const organizedPosts = Object.values(userPostsMap);
+
+            // Step 5: Return the response with pagination info
             return RequestResponseMappings.sendSuccessResponse(
                 res,
                 {
-                    posts: postsWithLikes,
+                    users: organizedPosts,
                     currentPage: page,
                     totalPages: Math.ceil(posts.length / limit),
                     totalItems: posts.length,
@@ -188,7 +276,7 @@ export default {
         } catch (error) {
             return RequestResponseMappings.sendErrorResponse(
                 res,
-                {error},
+                { error },
                 error instanceof Error ? error.message : "Failed to retrieve friends' posts",
                 500
             );
